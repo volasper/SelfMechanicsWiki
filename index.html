@@ -182,7 +182,7 @@
         <h1>基础人设生成器</h1>
         <p>从 11 个关键维度随机抽取设定，锁定满意项，再逐步补全人物。</p>
       </div>
-      <div class="badge">V1.14 · 单页离线版</div>
+      <div class="badge">V2 · 单页离线版</div>
     </header>
 
     <nav class="tabs">
@@ -215,7 +215,10 @@
         </div>
 
         <div class="panel">
-          <h2>2. 当前人物</h2>
+          <div class="section-title">
+            <h2>2. 当前人物</h2>
+            <button id="exportCharacterBtn" class="btn">导出人物</button>
+          </div>
           <p class="sub">普通生成每个维度只出 1 条；锁定后再次生成可逐步增加不同二级分类。同一二级分类不会重复。</p>
           <div id="resultList" class="result-list"></div>
 
@@ -14986,6 +14989,48 @@
       });
     }
 
+    function formatExportDate(date){
+      const pad = value=>String(value).padStart(2,"0");
+      return {
+        display:`${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`,
+        filename:`${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}`
+      };
+    }
+
+    function buildCharacterMarkdown(character=currentCharacter, exportedAt=formatExportDate(new Date()).display){
+      const keys = DIMENSIONS.map(d=>d.id).filter(id=>character[id]?.entries?.length);
+      if(!keys.length) return "";
+
+      const lines = ["# 人物设定", "", `导出时间：${exportedAt}`];
+      keys.forEach(id=>{
+        lines.push("", `## ${dimName(id)}`, "");
+        character[id].entries.forEach(entry=>{
+          const prefix = entry.type ? `${entry.type}：` : "";
+          lines.push(`- ${prefix}${entry.text}`);
+        });
+      });
+      return lines.join("\n") + "\n";
+    }
+
+    function exportCharacter(){
+      const now = new Date();
+      const stamp = formatExportDate(now);
+      const markdown = buildCharacterMarkdown(currentCharacter, stamp.display);
+      if(!markdown){
+        showToast("当前没有可导出的人物内容");
+        return;
+      }
+
+      const blob = new Blob([markdown],{type:"text/markdown;charset=utf-8"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `人物设定_${stamp.filename}.md`;
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),0);
+      showToast("人物文档已导出");
+    }
+
     function allBankRows(){
       const rows = [];
       DIMENSIONS.forEach(d=>{
@@ -15152,6 +15197,7 @@
     };
 
     $("#luckyBtn").onclick = luckyGenerate;
+    $("#exportCharacterBtn").onclick = exportCharacter;
 
     $("#selectAllBtn").onclick = ()=>{
       const cbs = $$("#dimensionGrid input");
